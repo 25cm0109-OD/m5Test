@@ -1,0 +1,5 @@
+Options -Indexes
+
+<FilesMatch "^(config\.php|schema\.sql|migration_add_commands\.sql|README\.md)$">
+  Require all denied
+</FilesMatch>
