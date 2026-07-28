@@ -13,6 +13,12 @@ session_set_cookie_params([
 ]);
 session_start();
 
+function validMetadataText(string $value): bool
+{
+    $characterCount = preg_match_all('/./us', $value, $matches);
+    return $characterCount !== false && $characterCount <= 100;
+}
+
 $loginError = false;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = (string) ($_POST['action'] ?? '');
@@ -33,6 +39,97 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
         $loginError = true;
+    }
+
+    if ($action === 'update_metadata' &&
+        ($_SESSION['authenticated'] ?? false) === true) {
+        $csrfToken = (string) ($_POST['csrf_token'] ?? '');
+        $sessionToken = (string) ($_SESSION['csrf_token'] ?? '');
+        $signalId = filter_var(
+            $_POST['signal_id'] ?? null,
+            FILTER_VALIDATE_INT,
+            ['options' => ['min_range' => 1]]
+        );
+        $signalName = trim((string) ($_POST['signal_name'] ?? ''));
+        $manufacturer = trim((string) ($_POST['manufacturer'] ?? ''));
+
+        if ($sessionToken === '' || !hash_equals($sessionToken, $csrfToken) ||
+            $signalId === false || !validMetadataText($signalName) ||
+            !validMetadataText($manufacturer)) {
+            $_SESSION['flash'] = [
+                'type' => 'error',
+                'message' => '信号情報を確認できませんでした。',
+            ];
+        } else {
+            try {
+                $statement = db()->prepare(
+                    'UPDATE ir_signals SET signal_name = :signal_name, '
+                    . 'manufacturer = :manufacturer WHERE id = :id'
+                );
+                $statement->execute([
+                    ':signal_name' => $signalName,
+                    ':manufacturer' => $manufacturer,
+                    ':id' => $signalId,
+                ]);
+                $_SESSION['flash'] = [
+                    'type' => 'success',
+                    'message' => '信号名とメーカー名を保存しました。',
+                ];
+            } catch (Throwable $exception) {
+                error_log('IR metadata update error: ' . $exception->getMessage());
+                $_SESSION['flash'] = [
+                    'type' => 'error',
+                    'message' => '信号情報を保存できませんでした。',
+                ];
+            }
+        }
+
+        header('Location: ./#signal-' . (string) ($signalId ?: ''), true, 303);
+        exit;
+    }
+
+    if ($action === 'delete_signal' &&
+        ($_SESSION['authenticated'] ?? false) === true) {
+        $csrfToken = (string) ($_POST['csrf_token'] ?? '');
+        $sessionToken = (string) ($_SESSION['csrf_token'] ?? '');
+        $signalId = filter_var(
+            $_POST['signal_id'] ?? null,
+            FILTER_VALIDATE_INT,
+            ['options' => ['min_range' => 1]]
+        );
+
+        if ($sessionToken === '' || !hash_equals($sessionToken, $csrfToken) ||
+            $signalId === false) {
+            $_SESSION['flash'] = [
+                'type' => 'error',
+                'message' => '削除要求を確認できませんでした。',
+            ];
+        } else {
+            try {
+                $statement = db()->prepare(
+                    'DELETE FROM ir_signals WHERE id = :id'
+                );
+                $statement->execute([':id' => $signalId]);
+                $_SESSION['flash'] = $statement->rowCount() > 0
+                    ? [
+                        'type' => 'success',
+                        'message' => '信号を削除しました。',
+                    ]
+                    : [
+                        'type' => 'error',
+                        'message' => '削除する信号が見つかりませんでした。',
+                    ];
+            } catch (Throwable $exception) {
+                error_log('IR signal delete error: ' . $exception->getMessage());
+                $_SESSION['flash'] = [
+                    'type' => 'error',
+                    'message' => '信号を削除できませんでした。',
+                ];
+            }
+        }
+
+        header('Location: ./', true, 303);
+        exit;
     }
 
     if ($action === 'enqueue' &&
@@ -117,14 +214,15 @@ if ($authenticated) {
     }
 
     $signals = db()->query(
-        'SELECT id, device_id, protocol, signal_value, address_value, command_value, bits, carrier_khz, raw_data, raw_length, received_at '
-        . 'FROM ir_signals ORDER BY received_at DESC, id DESC LIMIT 100'
+        'SELECT id, device_id, signal_name, manufacturer, protocol, signal_value, '
+        . 'address_value, command_value, bits, carrier_khz, raw_data, raw_length, received_at '
+        . 'FROM ir_signals ORDER BY received_at DESC, id DESC'
     )->fetchAll();
     $commands = db()->query(
         'SELECT c.id, c.device_id, c.signal_id, c.status, c.requested_at, '
-        . 'c.claimed_at, c.completed_at, c.error_message, s.protocol '
+        . 'c.claimed_at, c.completed_at, c.error_message, s.protocol, s.signal_name '
         . 'FROM ir_commands c INNER JOIN ir_signals s ON s.id = c.signal_id '
-        . 'ORDER BY c.requested_at DESC, c.id DESC LIMIT 20'
+        . 'ORDER BY c.requested_at DESC, c.id DESC'
     )->fetchAll();
 }
 ?>
@@ -179,7 +277,7 @@ if ($authenticated) {
               <article class="command-row">
                 <div>
                   <strong>#<?= h((string) $command['id']) ?> <?= h($command['protocol']) ?></strong>
-                  <span><?= h($command['device_id']) ?>・信号 #<?= h((string) $command['signal_id']) ?></span>
+                  <span><?= h($command['device_id']) ?>・<?= $command['signal_name'] !== '' ? h($command['signal_name']) : '信号 #' . h((string) $command['signal_id']) ?></span>
                 </div>
                 <div class="command-status">
                   <span class="status <?= h($command['status']) ?>"><?= h($command['status']) ?></span>
@@ -191,13 +289,18 @@ if ($authenticated) {
         <?php endif; ?>
       </section>
 
-      <p class="summary">最新 <?= count($signals) ?> 件を表示</p>
+      <p class="summary">全 <?= count($signals) ?> 件を表示</p>
       <section class="signal-list">
         <?php if (!$signals): ?><div class="card empty">受信データはまだありません。</div><?php endif; ?>
         <?php foreach ($signals as $signal): ?>
-          <article class="card signal">
+          <article class="card signal" id="signal-<?= h((string) $signal['id']) ?>">
             <div class="signal-title">
-              <div><span class="protocol"><?= h($signal['protocol']) ?></span><h2><?= h($signal['device_id']) ?></h2></div>
+              <div>
+                <span class="protocol"><?= h($signal['protocol']) ?></span>
+                <h2><?= $signal['signal_name'] !== '' ? h($signal['signal_name']) : '名前未設定の信号' ?></h2>
+                <p class="manufacturer"><?= $signal['manufacturer'] !== '' ? h($signal['manufacturer']) : 'メーカー未設定' ?></p>
+                <p class="device-id">機器ID: <?= h($signal['device_id']) ?></p>
+              </div>
               <time><?= h(displayTime($signal['received_at'])) ?></time>
             </div>
             <dl>
@@ -213,6 +316,31 @@ if ($authenticated) {
               <input type="hidden" name="csrf_token" value="<?= h($_SESSION['csrf_token']) ?>">
               <input type="hidden" name="signal_id" value="<?= h((string) $signal['id']) ?>">
               <button type="submit">この信号をM5から送信</button>
+            </form>
+            <details class="metadata-editor">
+              <summary>信号名・メーカー名を編集</summary>
+              <form method="post">
+                <input type="hidden" name="action" value="update_metadata">
+                <input type="hidden" name="csrf_token" value="<?= h($_SESSION['csrf_token']) ?>">
+                <input type="hidden" name="signal_id" value="<?= h((string) $signal['id']) ?>">
+                <div class="metadata-fields">
+                  <label>
+                    <span>信号名</span>
+                    <input name="signal_name" value="<?= h($signal['signal_name']) ?>" maxlength="100" placeholder="例: テレビ 電源">
+                  </label>
+                  <label>
+                    <span>メーカー名</span>
+                    <input name="manufacturer" value="<?= h($signal['manufacturer']) ?>" maxlength="100" placeholder="例: Panasonic">
+                  </label>
+                </div>
+                <button type="submit">保存する</button>
+              </form>
+            </details>
+            <form class="delete-form" method="post" onsubmit="return confirm('この信号を削除します。関連する送信履歴も削除されます。よろしいですか？');">
+              <input type="hidden" name="action" value="delete_signal">
+              <input type="hidden" name="csrf_token" value="<?= h($_SESSION['csrf_token']) ?>">
+              <input type="hidden" name="signal_id" value="<?= h((string) $signal['id']) ?>">
+              <button type="submit">この信号を削除</button>
             </form>
             <details><summary>RAWデータ</summary><pre><?= h($signal['raw_data']) ?></pre></details>
           </article>

@@ -1,7 +1,7 @@
 # ロリポップ設置・遠隔操作手順
 
 1. ロリポップの「サーバーの管理・設定 > データベース」でMySQLを作成します。
-2. phpMyAdminを開き、初回設置なら `schema.sql` をインポートします。以前の版を設置済みなら `migration_add_commands.sql` だけを1回インポートします。
+2. phpMyAdminを開き、初回設置なら `schema.sql` をインポートします。以前の版を設置済みなら `migration_add_commands.sql`（未適用の場合）と `migration_add_signal_metadata.sql` を、それぞれ1回インポートします。
 3. `config.example.php` を `config.php` にコピーし、DB接続情報、機器用APIキー、閲覧用パスワードを変更します。
 4. この `ir-signals` フォルダをロリポップFTPで公開フォルダへアップロードします。
 5. M5側の `src/ir_remote_capture/upload_config.example.h` を `upload_config.h` にコピーし、Wi-Fi情報、初期ドメインのAPIベースURL、同じAPIキーを設定して書き込みます。
@@ -41,17 +41,21 @@ constexpr char kApiKey[] = "config.phpのapi_keyと同じ値";
 
 M5の電源が切れている間も命令は `pending` のまま残り、次回オンライン時に古いものから実行されます。
 
+各信号の「信号名・メーカー名を編集」を開くと、「テレビ 電源」のような信号名とメーカー名を別々に保存できます。未設定の既存データも引き続き表示されます。
+
 ## Androidアプリ
 
 スマホ側はJava製のAndroidネイティブ閲覧アプリです。遠隔操作には上記のブラウザ画面を使用します。`AppConfig.java` の設定例は次のとおりです。
 
 ```java
 public static final String API_URL =
-        "https://アカウント名.lolipop.jp/ir-signals/api/signals.php?limit=100";
+        "https://アカウント名.lolipop.jp/ir-signals/api/signals.php";
 public static final String VIEWER_KEY = "config.phpのviewer_passwordと同じ値";
 ```
 
-Android Studioから実機へインストールします。「更新」を押すと最新100件を取得し、各項目をタップするとRAWデータを表示します。
+Android Studioから実機へインストールします。「更新」を押すと保存済みの全信号を取得し、信号名とメーカー名を別々に表示します。各項目をタップするとRAWデータを表示します。名前の編集と削除はブラウザ画面から行います。
+
+ブラウザ画面の「この信号を削除」を押すと、確認後に信号を削除します。外部キーの設定により、その信号に関連する送信履歴も同時に削除されます。
 
 ## 動作確認
 

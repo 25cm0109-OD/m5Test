@@ -14,23 +14,12 @@ if ($providedKey === '' || !hash_equals((string) $config['viewer_password'], $pr
     jsonResponse(['ok' => false, 'error' => 'unauthorized'], 401);
 }
 
-$limit = filter_var(
-    $_GET['limit'] ?? 100,
-    FILTER_VALIDATE_INT,
-    ['options' => ['min_range' => 1, 'max_range' => 100]]
-);
-if ($limit === false) {
-    jsonResponse(['ok' => false, 'error' => 'invalid_limit'], 422);
-}
-
 try {
-    $statement = db()->prepare(
-        'SELECT id, device_id, protocol, signal_value, address_value, command_value, '
+    $statement = db()->query(
+        'SELECT id, device_id, signal_name, manufacturer, protocol, signal_value, address_value, command_value, '
         . 'bits, carrier_khz, raw_data, raw_length, received_at '
-        . 'FROM ir_signals ORDER BY received_at DESC, id DESC LIMIT :limit'
+        . 'FROM ir_signals ORDER BY received_at DESC, id DESC'
     );
-    $statement->bindValue(':limit', $limit, PDO::PARAM_INT);
-    $statement->execute();
 
     $signals = [];
     foreach ($statement->fetchAll() as $row) {

@@ -36,6 +36,8 @@ button.secondary { margin: 0; background: #263553; color: #e8eefc; }
 .status.failed { color: #ffe4e6 !important; background: #be123c; }
 .signal-list { display: grid; gap: 15px; }
 .signal-title time { color: #92a4c2; font-size: .82rem; white-space: nowrap; }
+.manufacturer { margin: 7px 0 0; color: #dbeafe; font-weight: 700; }
+.device-id { margin: 4px 0 0; color: #8393ae; font-size: .78rem; }
 .protocol { display: inline-block; padding: 4px 8px; border-radius: 999px; background: #0e7490; color: #cffafe; font-size: .76rem; font-weight: 700; }
 dl { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin: 20px 0 15px; }
 dl div { min-width: 0; padding: 10px; background: #101a30; border-radius: 10px; }
@@ -44,6 +46,16 @@ dd { margin: 4px 0 0; overflow-wrap: anywhere; font-family: ui-monospace, SFMono
 details { color: #aab7ce; }
 .send-form { margin: 0 0 15px; }
 .send-form button { width: 100%; margin: 0; padding: 13px 16px; }
+.metadata-editor { margin-bottom: 13px; padding: 12px; border: 1px solid #293757; border-radius: 10px; }
+.metadata-editor > summary { cursor: pointer; color: #7dd3fc; font-weight: 700; }
+.metadata-editor form { margin-top: 4px; }
+.metadata-fields { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.metadata-fields label { margin-top: 12px; }
+.metadata-fields label span { display: block; margin-bottom: 6px; font-size: .82rem; }
+.metadata-editor button { width: 100%; }
+.delete-form { margin: 0 0 15px; }
+.delete-form button { width: 100%; margin: 0; color: #ffe4e6; background: #9f1239; }
 pre { max-height: 210px; overflow: auto; padding: 12px; background: #080d19; border-radius: 9px; color: #d7e1f4; white-space: pre-wrap; overflow-wrap: anywhere; }
 .empty { color: #aab7ce; text-align: center; }
-@media (max-width: 620px) { .container { padding-top: 22px; } dl { grid-template-columns: repeat(2, 1fr); } .signal-title { display: block; } .signal-title time { display: block; margin-top: 9px; } .command-row { align-items: flex-start; } }
+@media (max-width: 620px) { .container { padding-top: 22px; } dl, .metadata-fields { grid-template-columns: repeat(2, 1fr); } .signal-title { display: block; } .signal-title time { display: block; margin-top: 9px; } .command-row { align-items: flex-start; } }
+@media (max-width: 430px) { .metadata-fields { grid-template-columns: 1fr; } }

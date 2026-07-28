@@ -1,6 +1,8 @@
 CREATE TABLE ir_signals (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     device_id VARCHAR(64) NOT NULL,
+    signal_name VARCHAR(100) NOT NULL DEFAULT '',
+    manufacturer VARCHAR(100) NOT NULL DEFAULT '',
     protocol VARCHAR(32) NOT NULL,
     signal_value VARCHAR(18) NOT NULL,
     address_value BIGINT UNSIGNED NOT NULL,

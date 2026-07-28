@@ -147,7 +147,7 @@ public class MainActivity extends Activity {
         signalList.removeAllViews();
         progressBar.setVisibility(View.GONE);
         refreshButton.setEnabled(true);
-        statusText.setText("最新 " + signals.length() + " 件");
+        statusText.setText("全 " + signals.length() + " 件");
 
         if (signals.length() == 0) {
             TextView empty = text("受信データはまだありません。", 16, COLOR_MUTED);
@@ -175,9 +175,22 @@ public class MainActivity extends Activity {
         protocol.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         card.addView(protocol);
 
-        TextView device = text(signal.optString("device_id", "-"), 19, Color.WHITE);
-        device.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        device.setPadding(0, dp(5), 0, dp(3));
+        String signalName = signal.optString("signal_name", "").trim();
+        TextView name = text(signalName.isEmpty() ? "名前未設定の信号" : signalName,
+                19, Color.WHITE);
+        name.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        name.setPadding(0, dp(5), 0, dp(3));
+        card.addView(name);
+
+        String manufacturer = signal.optString("manufacturer", "").trim();
+        TextView maker = text(manufacturer.isEmpty() ? "メーカー未設定" : manufacturer,
+                15, Color.rgb(219, 234, 254));
+        maker.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        card.addView(maker);
+
+        TextView device = text("機器ID: " + signal.optString("device_id", "-"),
+                12, COLOR_MUTED);
+        device.setPadding(0, dp(3), 0, dp(3));
         card.addView(device);
         card.addView(text(formatTime(signal.optString("received_at", "")), 13, COLOR_MUTED));
 
